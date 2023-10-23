@@ -32,14 +32,14 @@ func GetMapStruct(mapValue any) MapStruct {
 	}
 }
 
-func PrintMapInfo(m any) {
-	mapStruct := GetMapStruct(m)
-
-	hmap := mapStruct.Hmap
-
-	fmt.Printf("%8s | %7s | %10s\n", "Elements", "Buckets", "LoadFactor")
-	fmt.Printf("%8d | %7d | %.1f\n", hmap.Count, 1<<hmap.B, float32(hmap.Count)/float32(int(1<<hmap.B)))
-}
+//func PrintMapInfo(m any) {
+//	mapStruct := GetMapStruct(m)
+//
+//	hmap := mapStruct.Hmap
+//
+//	fmt.Printf("%8s | %7s | %10s\n", "Elements", "Buckets", "LoadFactor")
+//	fmt.Printf("%8d | %7d | %.1f\n", hmap.Count, 1<<hmap.B, float32(hmap.Count)/float32(int(1<<hmap.B)))
+//}
 
 func (m MapStruct) PrintMapInfo() {
 	hmap := m.Hmap
@@ -49,9 +49,9 @@ func (m MapStruct) PrintMapInfo() {
 }
 
 type Buckets struct {
-	// [Бакет][Бакет, overflow-бакет...][Элемент]
+	// [Bucket][Bucket, overflow-Bucket...][Elemetn]
 	Buckets    [][][]unsafe.Pointer
-	OldBuckets [][][]unsafe.Pointer // Может быть nil
+	OldBuckets [][][]unsafe.Pointer // can be nil
 }
 
 func (m MapStruct) GetBuckets() Buckets {
