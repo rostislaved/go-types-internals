@@ -17,7 +17,6 @@ type Iface struct {
 ```
 
 # <a name="2">2. Map:</a>
-# Map
 Initialize some map:
 ```go
 package main
