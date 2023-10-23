@@ -27,27 +27,60 @@ func GetMapStruct(mapValue any) MapStruct {
 
 	return MapStruct{
 		Map:     mapValue,
-		Hmap:    hmapValue,
-		Maptype: maptype,
+		Hmap:    hmapValue, // value
+		Maptype: maptype,   // type
 	}
 }
 
 func PrintMapInfo(m any) {
 	mapStruct := GetMapStruct(m)
+
 	hmap := mapStruct.Hmap
 
 	fmt.Printf("%8s | %7s | %10s\n", "Elements", "Buckets", "LoadFactor")
 	fmt.Printf("%8d | %7d | %.1f\n", hmap.Count, 1<<hmap.B, float32(hmap.Count)/float32(int(1<<hmap.B)))
 }
 
-func (m MapStruct) GetBuckets() [][][]unsafe.Pointer {
+func (m MapStruct) PrintMapInfo() {
+	hmap := m.Hmap
+
+	fmt.Printf("%8s | %7s | %10s\n", "Elements", "Buckets", "LoadFactor")
+	fmt.Printf("%8d | %7d | %.1f\n", hmap.Count, 1<<hmap.B, float32(hmap.Count)/float32(int(1<<hmap.B)))
+}
+
+type Buckets struct {
+	// [Бакет][Бакет, overflow-бакет...][Элемент]
+	Buckets    [][][]unsafe.Pointer
+	OldBuckets [][][]unsafe.Pointer // Может быть nil
+}
+
+func (m MapStruct) GetBuckets() Buckets {
+	bucketsUP := m.Hmap.Buckets
+
+	b := m.getBuckets(bucketsUP)
+
+	oldbucketsUP := m.Hmap.Oldbuckets
+
+	ob := m.getBuckets(oldbucketsUP)
+
+	return Buckets{
+		Buckets:    b,
+		OldBuckets: ob,
+	}
+}
+
+func (m MapStruct) getBuckets(bucketsUP unsafe.Pointer) [][][]unsafe.Pointer {
+	if bucketsUP == nil {
+		return nil
+	}
+
 	numberOfBuckets := uintptr(1 << m.Hmap.B)
 
 	m1 := make([][][]unsafe.Pointer, numberOfBuckets)
 
 	// Проход по бакетам
 	for bucketNumber := uintptr(0); bucketNumber < numberOfBuckets; bucketNumber++ {
-		bucketAddress := (*Bmap)(add(m.Hmap.Buckets, bucketNumber*uintptr(m.Maptype.Bucketsize)))
+		bucketAddress := (*Bmap)(add(bucketsUP, bucketNumber*uintptr(m.Maptype.Bucketsize)))
 
 		overflowNumber := -1
 		// проход по цепочке: бакет, оверфлоу_бакет
@@ -65,37 +98,60 @@ func (m MapStruct) GetBuckets() [][][]unsafe.Pointer {
 			}
 		}
 	}
-
 	return m1
 }
 
-//func PrintBucketsGeneric[T any](m MapStruct) {
-//	b := m.GetBuckets()
-//
-//	// Бакеты
-//	for i := 0; i < len(b); i++ {
-//		fmt.Printf("Bucket: %d\n", i)
-//
-//		// Элементы
-//		for j := 0; j < len(b[i]); j++ {
-//			if j != 0 {
-//				fmt.Printf("Bucket: %d (overflow)\n", i)
-//			}
-//
-//			for k := 0; k < len(b[i][j]); k++ {
-//				valueUp := b[i][j][k]
-//
-//				str := *(*T)(valueUp) // Вот тут
-//
-//				fmt.Printf("   Element: [%d] = %v\n", k, str)
-//			}
-//		}
-//	}
-//}
+func PrintBucketsGeneric[T any](m MapStruct) {
+	b := m.GetBuckets()
+
+	fmt.Println("Buckets:")
+	printBucketsGeneric[T](b.Buckets)
+
+	fmt.Println("OldBuckets:")
+	if b.OldBuckets != nil {
+		printBucketsGeneric[T](b.OldBuckets)
+	} else {
+		fmt.Println("[]")
+	}
+}
+
+func printBucketsGeneric[T any](b [][][]unsafe.Pointer) {
+	// Бакеты
+	for i := 0; i < len(b); i++ {
+		fmt.Printf("Bucket: %d\n", i)
+
+		// Элементы
+		for j := 0; j < len(b[i]); j++ {
+			if j != 0 {
+				fmt.Printf("Bucket: %d (overflow)\n", i)
+			}
+
+			for k := 0; k < len(b[i][j]); k++ {
+				valueUp := b[i][j][k]
+
+				str := *(*T)(valueUp) // Вот тут
+
+				fmt.Printf("   Element: [%d] = %v\n", k, str)
+			}
+		}
+	}
+}
 
 func (m MapStruct) PrintBuckets() {
 	b := m.GetBuckets()
 
+	fmt.Println("Buckets:")
+	m.printBuckets(b.Buckets)
+
+	fmt.Println("OldBuckets:")
+	if b.OldBuckets != nil {
+		m.printBuckets(b.OldBuckets)
+	} else {
+		fmt.Println("[]")
+	}
+}
+
+func (m MapStruct) printBuckets(b [][][]unsafe.Pointer) {
 	kind := m.Maptype.Elem.Kind
 	// Бакеты
 	for i := 0; i < len(b); i++ {
@@ -110,7 +166,7 @@ func (m MapStruct) PrintBuckets() {
 			for k := 0; k < len(b[i][j]); k++ {
 				valueUp := b[i][j][k]
 
-				val := getValueByUnsafePointerAndKind(valueUp, kind)
+				val := getValueByUnsafePointerAndKind(valueUp, kind) // TODO скорее всего не все типы учтены
 
 				fmt.Printf("   Element: [%d] = %v\n", k, val)
 			}
