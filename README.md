@@ -50,7 +50,6 @@ There are some handy functions:
 ```go
 mapStruct.PrintMapInfo()
 ```
-	// Prints:
 	// Elements | Buckets | LoadFactor
 	//        9 |       2 | 4.5
 
@@ -63,7 +62,6 @@ mapStruct.PrintBuckets()
 maptype.PrintBucketsGeneric[int64](mapStruct)
 
 ```
-	// Prints
 	// Buckets:
 	//	Bucket: 0
 	//	   Element: [0] = 1
