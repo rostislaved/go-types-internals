@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/rostislaved/go-types-internals/maptype"
+	"github.com/rostislaved/go-types-internals/slicetype"
 )
 
 func main() {
@@ -52,4 +55,14 @@ func main() {
 	// Get buckets [][][]unsafe.Pointer
 	buckets := mapStruct.GetBuckets()
 	_ = buckets
+
+	//
+
+	s := []int{1, 2, 3}
+	ss := slicetype.GetSliceStruct(s)
+	fmt.Println(ss.Value.Len)
+	fmt.Println(ss.Value.Cap)
+	fmt.Println(ss.Value.Array)
+
+	fmt.Println(ss.Type.Elem.Align)
 }

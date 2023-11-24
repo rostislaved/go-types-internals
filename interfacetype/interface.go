@@ -12,7 +12,7 @@ func GetEmptyInterface(mm any) *Iface {
 
 // Еще надо посмотреть сюда: /reflect/value.go:206
 type Iface struct { // runtime2.go
-	Itab unsafe.Pointer // Как я понял, тут могут быть разные типы. В случае мапы Maptype
+	Itab unsafe.Pointer // Как я понял, тут могут быть разные типы. В случае мапы Type
 	Data unsafe.Pointer
 }
 

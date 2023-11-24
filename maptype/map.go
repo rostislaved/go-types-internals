@@ -5,44 +5,42 @@ import (
 	"reflect"
 	"unsafe"
 
+	"github.com/rostislaved/go-types-internals/general"
 	"github.com/rostislaved/go-types-internals/interfacetype"
 )
 
 //type MapStruct[T any] struct {
-//	Hmap    Hmap
-//	Maptype Maptype
+//	Value    Value
+//	Type Type
 //}
 
 type MapStruct struct {
-	Map     interface{}
-	Hmap    Hmap
-	Maptype Maptype
+	InitialValue interface{}
+	Type         MapType
+	Value        Hmap
 }
 
-func GetMapStruct(mapValue any) MapStruct {
-	ei := interfacetype.GetEmptyInterface(mapValue)
-
-	hmapValue := *(*Hmap)(ei.Data)
-	maptype := *(*Maptype)(ei.Itab)
+func GetMapStruct(value any) MapStruct {
+	ts := general.GetTypeStruct[MapType, Hmap](value)
 
 	return MapStruct{
-		Map:     mapValue,
-		Hmap:    hmapValue, // value
-		Maptype: maptype,   // type
+		InitialValue: ts.InitialValue,
+		Type:         ts.Type,
+		Value:        ts.Value,
 	}
 }
 
 //func PrintMapInfo(m any) {
 //	mapStruct := GetMapStruct(m)
 //
-//	hmap := mapStruct.Hmap
+//	hmap := mapStruct.Value
 //
 //	fmt.Printf("%8s | %7s | %10s\n", "Elements", "Buckets", "LoadFactor")
 //	fmt.Printf("%8d | %7d | %.1f\n", hmap.Count, 1<<hmap.B, float32(hmap.Count)/float32(int(1<<hmap.B)))
 //}
 
 func (m MapStruct) PrintMapInfo() {
-	hmap := m.Hmap
+	hmap := m.Value
 
 	fmt.Printf("%8s | %7s | %10s\n", "Elements", "Buckets", "LoadFactor")
 	fmt.Printf("%8d | %7d | %.1f\n", hmap.Count, 1<<hmap.B, float32(hmap.Count)/float32(int(1<<hmap.B)))
@@ -55,11 +53,11 @@ type Buckets struct {
 }
 
 func (m MapStruct) GetBuckets() Buckets {
-	bucketsUP := m.Hmap.Buckets
+	bucketsUP := m.Value.Buckets
 
 	b := m.getBuckets(bucketsUP)
 
-	oldbucketsUP := m.Hmap.Oldbuckets
+	oldbucketsUP := m.Value.Oldbuckets
 
 	ob := m.getBuckets(oldbucketsUP)
 
@@ -74,24 +72,24 @@ func (m MapStruct) getBuckets(bucketsUP unsafe.Pointer) [][][]unsafe.Pointer {
 		return nil
 	}
 
-	numberOfBuckets := uintptr(1 << m.Hmap.B)
+	numberOfBuckets := uintptr(1 << m.Value.B)
 
 	m1 := make([][][]unsafe.Pointer, numberOfBuckets)
 
 	// Проход по бакетам
 	for bucketNumber := uintptr(0); bucketNumber < numberOfBuckets; bucketNumber++ {
-		bucketAddress := (*Bmap)(add(bucketsUP, bucketNumber*uintptr(m.Maptype.Bucketsize)))
+		bucketAddress := (*Bmap)(add(bucketsUP, bucketNumber*uintptr(m.Type.Bucketsize)))
 
 		overflowNumber := -1
 		// проход по цепочке: бакет, оверфлоу_бакет
-		for ; bucketAddress != nil; bucketAddress = bucketAddress.overflow(&m.Maptype) {
+		for ; bucketAddress != nil; bucketAddress = bucketAddress.overflow(&m.Type) {
 			overflowNumber++
 
 			m2 := make([]unsafe.Pointer, bucketCnt)
 			m1[int(bucketNumber)] = append(m1[int(bucketNumber)], m2)
 			// Проход по элементам бакета
 			for bucketElem := uintptr(0); bucketElem < bucketCnt; bucketElem++ {
-				upValue := add(unsafe.Pointer(bucketAddress), DataOffset+bucketCnt*uintptr(m.Maptype.Keysize)+bucketElem*uintptr(m.Maptype.Elemsize))
+				upValue := add(unsafe.Pointer(bucketAddress), DataOffset+bucketCnt*uintptr(m.Type.Keysize)+bucketElem*uintptr(m.Type.Elemsize))
 
 				m1[bucketNumber][overflowNumber][bucketElem] = upValue
 
@@ -152,7 +150,7 @@ func (m MapStruct) PrintBuckets() {
 }
 
 func (m MapStruct) printBuckets(b [][][]unsafe.Pointer) {
-	kind := m.Maptype.Elem.Kind
+	kind := m.Type.Elem.Kind
 	// Бакеты
 	for i := 0; i < len(b); i++ {
 		fmt.Printf("Bucket: %d\n", i)
@@ -226,7 +224,7 @@ func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
 }
 
-func (b *Bmap) overflow(t *Maptype) *Bmap {
+func (b *Bmap) overflow(t *MapType) *Bmap {
 	const PtrSize = 4 << (^uintptr(0) >> 63)
 	return *(**Bmap)(add(unsafe.Pointer(b), uintptr(t.Bucketsize)-PtrSize))
 }
@@ -286,7 +284,8 @@ const DataOffset = unsafe.Offsetof(struct {
 	v int64
 }{}.v)
 
-type Maptype struct {
+// internal/abi/type.go:440
+type MapType struct {
 	Typ    interfacetype.T_type
 	Key    *interfacetype.T_type
 	Elem   *interfacetype.T_type
