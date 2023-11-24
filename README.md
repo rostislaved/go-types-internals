@@ -1,20 +1,30 @@
 # go-types-internals
 Get access to runtime implementation of go types
 
-**Content:**  
-**[1. Empty Interface](#1)**  
-**[2. Map](#2)**
+For any supported type you can get its internal representation with help of functions:
 
-# <a name="1">1. Empty Interface:</a>
 ```go
-iFace := GetEmptyInterface(anyValue)
+func GetMapStruct(value any) MapStruct  
+func GetSliceStruct(value any) SliceStruct
 ```
+
+Each type's struct has a form of this struct:
 ```go
-type Iface struct { 
-	Itab unsafe.Pointer
-	Data unsafe.Pointer
+type TypeStruct struct {
+	InitialValue interface{}
+	Type         TypeT
+	Value        ValueT
 }
 ```
+
+and has its own handy methods (for example for printing map info)
+
+**Content:**  
+**[1. Map](#1)**  
+**[2. Slice](#2)**  
+**[_. Empty Interface](#_)**  
+
+
 
 # <a name="2">2. Map:</a>
 Initialize some map:
@@ -38,9 +48,9 @@ func main() {
 
 ```go
 type MapStruct struct {
-	Map     interface{} // map itself
-	Hmap    Hmap        // map data
-	Maptype Maptype     // type info
+	InitialValue  interface{} // map itself
+	Type          Maptype     // type info
+	Value         Hmap        // map data
 }
 ```
 
@@ -91,4 +101,39 @@ maptype.PrintBucketsGeneric[int64](mapStruct)
 buckets := mapStruct.GetBuckets()
 ```
 
+# <a name="2">2. Slice:</a>
+```go
+package main
+
+import (
+	"github.com/rostislaved/go-types-internals/slicetype"
+    "fmt"
+)
+
+func main() {
+	s := []int{1, 2, 3}
+
+	ss := slicetype.GetSliceStruct(s)
+
+	fmt.Println(ss.Value.Len)
+	fmt.Println(ss.Value.Cap)
+	fmt.Println(ss.Value.Array)
+
+	fmt.Println(ss.Type.Elem.Align)
+}
+```
+no handy methods yet :) only access to fields
+
+# <a name="_">_. Empty Interface:</a>
+```go
+iFace := GetEmptyInterface(anyValue)
+```
+
+it is used mainly for others function, but I left it exported
+```go
+type Iface struct { 
+	Itab unsafe.Pointer
+	Data unsafe.Pointer
+}
+```
 
